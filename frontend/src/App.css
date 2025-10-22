@@ -1,0 +1,12 @@
+.page-container {
+  max-width: 1020px;
+  margin: 2rem auto;
+  background: #292929;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 6px 32px #000a;
+}
+
+h1, h2, h3, h4 {
+  color: #03a9f4;
+}
