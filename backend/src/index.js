@@ -152,26 +152,37 @@ app.get('/docs.json', (req, res) => {
 const uri = process.env.MONGODB_URI;
 const dbName = process.env.DB_NAME;
 
-MongoClient.connect(uri, { serverSelectionTimeoutMS: 10000 })
-  .then(client => {
-    const db = client.db(dbName);
-    app.locals.db = db;
+async function connectToMongo() {
+  if (!app.locals.db) {
+    try {
+      const client = await MongoClient.connect(uri, { serverSelectionTimeoutMS: 10000 });
+      const db = client.db(dbName);
+      app.locals.db = db;
 
-    // Ensure helpful indexes
-    db.collection('issues').createIndex({ createdAt: -1 }).catch(() => {});
-    db.collection('issues').createIndex({ status: 1 }).catch(() => {});
-    db.collection('issues').createIndex({ wardNumber: 1 }).catch(() => {});
-    db.collection('issues').createIndex({ upvotes: -1 }).catch(() => {});
+      // Ensure helpful indexes
+      db.collection('issues').createIndex({ createdAt: -1 }).catch(() => {});
+      db.collection('issues').createIndex({ status: 1 }).catch(() => {});
+      db.collection('issues').createIndex({ wardNumber: 1 }).catch(() => {});
+      db.collection('issues').createIndex({ upvotes: -1 }).catch(() => {});
 
-    logger.info('Connected to MongoDB Atlas');
-    const port = process.env.PORT || 8080;
-    const server = app.listen(port, () => logger.info(`Server running on http://localhost:${port}`));
-    app.locals.server = server;
-  })
-  .catch(err => {
-    logger.error({ err }, 'Failed to connect to MongoDB');
-    process.exit(1);
-  });
+      logger.info('Connected to MongoDB Atlas');
+    } catch (err) {
+      logger.error({ err }, 'Failed to connect to MongoDB');
+      throw err;
+    }
+  }
+}
+
+// Middleware to ensure DB is connected before handling requests
+app.use(async (req, res, next) => {
+  try {
+    await connectToMongo();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
 
 /**
  * @openapi
@@ -969,3 +980,9 @@ app.get('/issues/:id', async (req, res) => {
 
 
 module.exports = app;
+
+// --- Local development server ---
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`🚀 Backend running locally on port ${PORT}`));
+}
