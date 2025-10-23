@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -42,12 +43,6 @@ const statusConfig = {
     color: '#10b981', 
     label: 'Resolved', 
     bg: '#d1fae5',
-    icon: CheckCircle 
-  },
-  closed: { 
-    color: '#6b7280', 
-    label: 'Closed', 
-    bg: '#f3f4f6',
     icon: CheckCircle 
   },
 };
@@ -176,184 +171,189 @@ export default function IssueCard({ issue }) {
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        border: '1px solid #e5e7eb',
-        borderRadius: 2,
-        overflow: 'hidden',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-          transform: 'translateY(-2px)',
-          borderColor: statusInfo.color,
-        },
-      }}
-    >
-      {/* Image Section */}
-      {imageSource && !imageError ? (
-        <CardMedia
-          component="img"
-          sx={{
-            width: { xs: '100%', sm: 200 },
-            height: { xs: 200, sm: 'auto' },
-            minHeight: { sm: 200 },
-            objectFit: 'cover',
-            flexShrink: 0,
-          }}
-          image={imageSource}
-          alt={issue.title}
-          onError={(e) => {
-            console.error('Failed to load image:', imageSource);
-            setImageError(true);
-          }}
-        />
-      ) : imageError ? (
-        // Placeholder for failed images
-        <Box
-          sx={{
-            width: { xs: '100%', sm: 200 },
-            height: { xs: 200, sm: 'auto' },
-            minHeight: { sm: 200 },
-            bgcolor: '#f3f4f6',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#9ca3af',
-            flexShrink: 0,
-          }}
-        >
-          <Typography variant="body2" color="inherit">
-            Image Not Available
-          </Typography>
-        </Box>
-      ) : null}
-
-      {/* Content Section */}
-      <CardContent sx={{ flex: 1, p: 3 }}>
-        <Stack spacing={2}>
-          {/* Header with Title and Status */}
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, gap: 2 }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: '1.125rem',
-                  color: '#1f2937',
-                  flex: 1,
-                }}
-              >
-                {issue.title}
-              </Typography>
-              <Chip
-                icon={<StatusIcon sx={{ fontSize: 16 }} />}
-                label={statusInfo.label}
-                size="small"
-                sx={{
-                  bgcolor: statusInfo.bg,
-                  color: statusInfo.color,
-                  fontWeight: 600,
-                  border: `1px solid ${statusInfo.color}30`,
-                  '& .MuiChip-icon': {
-                    color: statusInfo.color,
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Description */}
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                lineHeight: 1.6,
-                mb: 2,
-              }}
-            >
-              {issue.description}
-            </Typography>
-          </Box>
-
-          {/* Metadata Row */}
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ 
-              flexWrap: 'wrap',
-              gap: 1,
+    <Link to={`/issue/${issue._id}/edit`} style={{ textDecoration: 'none' }}>
+      <Card
+        elevation={0}
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          border: '1px solid #e5e7eb',
+          borderRadius: 2,
+          overflow: 'hidden',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+            transform: 'translateY(-2px)',
+            borderColor: statusInfo.color,
+          },
+        }}
+      >
+        {/* Image Section */}
+        {imageSource && !imageError ? (
+          <CardMedia
+            component="img"
+            sx={{
+              width: { xs: '100%', sm: 200 },
+              height: { xs: 200, sm: 'auto' },
+              minHeight: { sm: 200 },
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+            image={imageSource}
+            alt={issue.title}
+            onError={(e) => {
+              console.error('Failed to load image:', imageSource);
+              setImageError(true);
+            }}
+          />
+        ) : imageError ? (
+          // Placeholder for failed images
+          <Box
+            sx={{
+              width: { xs: '100%', sm: 200 },
+              height: { xs: 200, sm: 'auto' },
+              minHeight: { sm: 200 },
+              bgcolor: '#f3f4f6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#9ca3af',
+              flexShrink: 0,
             }}
           >
-            {/* Priority */}
-            <Chip
-              label={`${issue.priority?.toUpperCase() || 'MEDIUM'} Priority`}
-              size="small"
-              sx={{
-                height: 24,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                bgcolor: priorityInfo.bg,
-                color: priorityInfo.color,
-                border: `1px solid ${priorityInfo.color}30`,
-              }}
-            />
+            <Typography variant="body2" color="inherit">
+              Image Not Available
+            </Typography>
+          </Box>
+        ) : null}
 
-            {/* Location */}
-            {(issue.ward || issue.wardName || (issue.lat && issue.lng)) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <LocationOn sx={{ fontSize: 16, color: '#6b7280' }} />
-                <Typography variant="caption" color="text.secondary">
-                  {issue.ward || issue.wardName || `${issue.lat?.toFixed(4)}, ${issue.lng?.toFixed(4)}`}
+        {/* Content Section */}
+        <CardContent sx={{ flex: 1, p: 3 }}>
+          <Stack spacing={2}>
+            {/* Header with Title and Status */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, gap: 2 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '1.125rem',
+                    color: '#1f2937',
+                    flex: 1,
+                  }}
+                >
+                  {issue.title}
                 </Typography>
+                <Chip
+                  icon={<StatusIcon sx={{ fontSize: 16 }} />}
+                  label={statusInfo.label}
+                  size="small"
+                  sx={{
+                    bgcolor: statusInfo.bg,
+                    color: statusInfo.color,
+                    fontWeight: 600,
+                    border: `1px solid ${statusInfo.color}30`,
+                    '& .MuiChip-icon': {
+                      color: statusInfo.color,
+                    },
+                  }}
+                />
               </Box>
-            )}
 
-            {/* Date */}
-            {issue.createdAt && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <AccessTime sx={{ fontSize: 16, color: '#6b7280' }} />
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(issue.createdAt)}
-                </Typography>
-              </Box>
-            )}
-          </Stack>
+              {/* Description */}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: 1.6,
+                  mb: 2,
+                }}
+              >
+                {issue.description}
+              </Typography>
+            </Box>
 
-          {/* Upvote Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 1 }}>
-            <IconButton
-              onClick={handleUpvote}
-              disabled={isUpvoting || !user}
-              size="small"
-              sx={{
-                color: isUpvoted ? '#2563eb' : '#9ca3af',
-                '&:hover': {
-                  bgcolor: isUpvoted ? '#e6f0ff' : '#f3f4f6',
-                },
-                '&:disabled': {
-                  color: '#9ca3af',
-                },
+            {/* Metadata Row */}
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{ 
+                flexWrap: 'wrap',
+                gap: 1,
               }}
             >
-              <ThumbUp sx={{ fontSize: 18 }} />
-            </IconButton>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-              {upvotes} {upvotes === 1 ? 'upvote' : 'upvotes'}
-            </Typography>
-            {!user && (
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                (Login to upvote)
+              {/* Priority */}
+              <Chip
+                label={`${issue.priority?.toUpperCase() || 'MEDIUM'} Priority`}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  bgcolor: priorityInfo.bg,
+                  color: priorityInfo.color,
+                  border: `1px solid ${priorityInfo.color}30`,
+                }}
+              />
+
+              {/* Location */}
+              {(issue.ward || issue.wardName || (issue.lat && issue.lng)) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <LocationOn sx={{ fontSize: 16, color: '#6b7280' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    {issue.ward || issue.wardName || `${issue.lat?.toFixed(4)}, ${issue.lng?.toFixed(4)}`}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Date */}
+              {issue.createdAt && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccessTime sx={{ fontSize: 16, color: '#6b7280' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    {formatDate(issue.createdAt)}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+
+            {/* Upvote Section */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 1 }}>
+              <IconButton
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleUpvote();
+                }}
+                disabled={isUpvoting || !user}
+                size="small"
+                sx={{
+                  color: isUpvoted ? '#2563eb' : '#9ca3af',
+                  '&:hover': {
+                    bgcolor: isUpvoted ? '#e6f0ff' : '#f3f4f6',
+                  },
+                  '&:disabled': {
+                    color: '#9ca3af',
+                  },
+                }}
+              >
+                <ThumbUp sx={{ fontSize: 18 }} />
+              </IconButton>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {upvotes} {upvotes === 1 ? 'upvote' : 'upvotes'}
               </Typography>
-            )}
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
+              {!user && (
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  (Login to upvote)
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

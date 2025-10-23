@@ -124,23 +124,13 @@ export default function WardIssues() {
 
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
-      {/* Header Section */}
-      <Box sx={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        pt: 4,
-        pb: 8,
-        px: 4
-      }}>
-        <Container maxWidth="lg">
-          <PageHeader
-            title="CIVIC ISSUES"
-            summary={{
-              titleText: wardName,
-              subText: `${filteredIssues.length} ${filteredIssues.length === 1 ? 'issue' : 'issues'} reported`
-            }}
-          />
-        </Container>
-      </Box>
+      <PageHeader
+        title="CIVIC ISSUES"
+        summary={{
+          titleText: wardName,
+          subText: `${filteredIssues.length} ${filteredIssues.length === 1 ? 'issue' : 'issues'} reported`
+        }}
+      />
 
       <Container maxWidth="lg" sx={{ mt: -4, pb: 6 }}>
         {/* Stats Cards */}

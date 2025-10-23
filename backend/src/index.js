@@ -323,7 +323,7 @@ app.post('/issues',
   validate(IssueCreateSchema),
   async (req, res) => {
     const db = req.app.locals.db;
-    const { title, description, category, lat, lng, photo, userId } = req.body;
+    const { title, description, category, lat, lng, photo, userId, priority } = req.body;
 
     let wardInfo = null;
     if (typeof lat === 'number' && typeof lng === 'number') {
@@ -353,7 +353,7 @@ app.post('/issues',
       wardNumber: wardInfo?.wardNumber || null,
       wardName: wardInfo?.wardName || null,
       upvotes: 0,
-      priority: 'medium',
+      priority: priority || 'medium',
       createdAt: now,
       updatedAt: now,
       status: 'open',
@@ -735,7 +735,7 @@ app.post('/issues/:id/status',
   async (req, res) => {
     const db = req.app.locals.db;
     const { id } = req.params;
-    const { status, assignedTo } = req.body;
+    const { status, assignedTo, statusChangeReason } = req.body;
 
     const set = { updatedAt: new Date() };
     if (status) set.status = status;
@@ -743,7 +743,7 @@ app.post('/issues/:id/status',
 
     const update = {
       $set: set,
-      $push: { history: { status, assignedTo, timestamp: new Date() } }
+      $push: { history: { status, assignedTo, reason: statusChangeReason, timestamp: new Date() } }
     };
 
     try {

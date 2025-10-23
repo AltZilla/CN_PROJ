@@ -5,6 +5,7 @@ import MapView from './pages/MapView';
 import UploadView from './pages/UploadView';
 import Dashboard from './pages/Dashboard';
 import WardIssues from './pages/WardIssues';
+import EditIssue from './pages/EditIssue';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -181,6 +182,7 @@ export default function App() {
             <Route path="/upload" element={<UploadView />} />
             <Route path="/ward/:id" element={<WardIssues />} />
             <Route path="/wards/:wardSlug" element={<WardIssues />} />
+            <Route path="/issue/:id/edit" element={<EditIssue />} />
           </Routes>
         </div>
       </Router>

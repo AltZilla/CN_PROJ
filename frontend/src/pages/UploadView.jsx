@@ -73,6 +73,8 @@ export default function UploadView() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [debugPayload, setDebugPayload] = useState(null);
+  const [locationFromExif, setLocationFromExif] = useState(false);
+  const [map, setMap] = useState(null);
 
   const steps = ['Issue Details', 'Location & Photo', 'Review & Submit'];
 
@@ -106,6 +108,31 @@ export default function UploadView() {
         const reader = new FileReader();
         reader.onload = () => {
           setFormData(prev => ({ ...prev, photo: reader.result })); // store base64
+
+          window.EXIF.getData(file, function() {
+            const lat = window.EXIF.getTag(this, "GPSLatitude");
+            const lon = window.EXIF.getTag(this, "GPSLongitude");
+            const latRef = window.EXIF.getTag(this, "GPSLatitudeRef");
+            const lonRef = window.EXIF.getTag(this, "GPSLongitudeRef");
+
+            if (lat && lon && latRef && lonRef) {
+              let decimalLat = lat[0] + (lat[1] / 60) + (lat[2] / 3600);
+              if (latRef === "S") {
+                decimalLat = -decimalLat;
+              }
+
+              let decimalLon = lon[0] + (lon[1] / 60) + (lon[2] / 3600);
+              if (lonRef === "W") {
+                decimalLon = -decimalLon;
+              }
+
+              setMarkerPosition({ lat: decimalLat, lng: decimalLon });
+              if (map) {
+                map.flyTo([decimalLat, decimalLon], 15);
+              }
+              setLocationFromExif(true);
+            }
+          });
         };
         reader.readAsDataURL(file);
       } else {
@@ -124,12 +151,16 @@ export default function UploadView() {
       setError('Title must be at least 3 characters long.');
       return;
     }
-    if (!formData.description || formData.description.trim().length < 5) {
+    if (!formData.description) {
       setError('Description must be at least 5 characters long.');
       return;
     }
     if (!formData.category || formData.category.trim().length < 2) {
       setError('Please select a category.');
+      return;
+    }
+    if (!formData.photo) {
+      setError('Please upload a photo.');
       return;
     }
 
@@ -186,25 +217,18 @@ export default function UploadView() {
     }
   };
 
-  const canProceedStep1 = formData.title && formData.description && formData.priority;
-  const canProceedStep2 = true;
+  const canProceedStep1 = formData.title.trim().length >= 3 && formData.description && formData.priority;
+  const canProceedStep2 = formData.photo !== null;
 
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
-      <Box sx={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        pt: 4,
-        pb: 8,
-        px: 4
-      }}>
-        <PageHeader
-          title="Report Issue"
-          summary={{ 
-            titleText: 'Help us improve Chennai', 
-            subText: 'Report civic issues and help make our city better' 
-          }}
-        />
-      </Box>
+      <PageHeader
+        title="Report Issue"
+        summary={{ 
+          titleText: 'Help us improve Chennai', 
+          subText: 'Report civic issues and help make our city better' 
+        }}
+      />
 
       <Box sx={{ px: 4, mt: -4, pb: 6 }}>
         <Paper 
@@ -308,8 +332,9 @@ export default function UploadView() {
                       <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Option 2: Select Location</Typography>
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>Click on the map to set location, or drag the marker</Typography>
+                    {locationFromExif && <Alert severity="success" sx={{ mb: 2 }}>Location automatically detected from image.</Alert>}
                     <Box sx={{ height: 350, borderRadius: 2, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                      <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+                      <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }} whenCreated={setMap}>
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors"/>
                         <LocationSelector position={markerPosition} setPosition={setMarkerPosition}/>
                       </MapContainer>
@@ -317,7 +342,7 @@ export default function UploadView() {
                   </Paper>
                   <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
                     <Button variant="outlined" onClick={() => setActiveStep(0)} sx={{ px: 4 }}>Back</Button>
-                    <Button variant="contained" onClick={() => setActiveStep(2)} sx={{ px: 4 }}>Next</Button>
+                    <Button variant="contained" onClick={() => setActiveStep(2)} disabled={!canProceedStep2} sx={{ px: 4 }}>Next</Button>
                   </Box>
                 </Box>
               )}

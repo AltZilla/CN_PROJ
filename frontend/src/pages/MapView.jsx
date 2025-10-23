@@ -5,6 +5,8 @@ import L from 'leaflet';
 import { Box, Container, Paper, Typography, Chip, Stack, Fade } from '@mui/material';
 import { LocationOn, Info } from '@mui/icons-material';
 import PageHeader from '../components/PageHeader';
+import IssueHistoryModal from '../components/IssueHistoryModal';
+import { Button } from '@mui/material';
 
 const iconUrls = {
   red: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
@@ -45,6 +47,18 @@ export default function MapView() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [selectedIssue, setSelectedIssue] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleOpenModal = (issue) => {
+    setSelectedIssue(issue);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedIssue(null);
+    setModalOpen(false);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -108,29 +122,13 @@ export default function MapView() {
 
   return (
     <Box sx={{ bgcolor: '#f3f6fb', minHeight: '100vh' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          pt: 6,
-          pb: 10,
-          px: 4,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
+      <PageHeader
+        title="CIVIC MAP"
+        summary={{
+          titleText: 'Explore Chennai',
+          subText: 'Interactive map showing civic issues across wards'
         }}
-      >
-        <Container maxWidth="xl">
-          <Box sx={{ textAlign: 'left' }}>
-            <PageHeader
-              title="CIVIC MAP"
-              summary={{
-                titleText: 'Explore Chennai',
-                subText: 'Interactive map showing civic issues across wards'
-              }}
-            />
-          </Box>
-        </Container>
-      </Box>
+      />
 
       <Container maxWidth="xl" sx={{ mt: -6, pb: 4 }}>
         {/* Legend Card */}
@@ -228,12 +226,20 @@ export default function MapView() {
                         </Typography>
                       </Box>
                     </Stack>
+                    <Button size="small" onClick={() => handleOpenModal(issue)} sx={{ mt: 1 }}>View History</Button>
                   </Box>
                 </Popup>
               </Marker>
             ))}
           </MapContainer>
         </Paper>
+        {selectedIssue && (
+          <IssueHistoryModal
+            open={modalOpen}
+            handleClose={handleCloseModal}
+            history={selectedIssue.history}
+          />
+        )}
       </Container>
     </Box>
   );

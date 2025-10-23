@@ -2,8 +2,9 @@
 const { z } = require('zod');
 
 const StatusSchema = z.object({
-  status: z.enum(['open','in_progress','resolved','closed']).optional(),
-  assignedTo: z.string().min(2).max(100).optional()
+  status: z.enum(['open','in_progress','resolved']).optional(),
+  assignedTo: z.string().min(2).max(100).optional(),
+  statusChangeReason: z.string().min(5).max(1000),
 }).refine(d => d.status || d.assignedTo, { message: 'Provide status or assignedTo' });
 
 const CommentSchema = z.object({

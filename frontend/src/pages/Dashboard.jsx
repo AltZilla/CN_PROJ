@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Box, Typography, Paper, List, Grid, Card, CardContent, Chip, LinearProgress } from '@mui/material';
-import { TrendingUp, CheckCircle, Warning, PendingActions } from '@mui/icons-material';
+import { TrendingUp, CheckCircle, Warning, PendingActions, Archive } from '@mui/icons-material';
 import IssueCard from '../components/IssueCard';
 import PageHeader from '../components/PageHeader';
+import FiltersPanel from '../components/FiltersPanel';
 
 export default function Dashboard() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('latest');
 
   useEffect(() => {
     fetch('http://localhost:8080/issues?limit=10&sort=createdAt:desc')
@@ -21,14 +25,30 @@ export default function Dashboard() {
       });
   }, []);
 
+  const filteredIssues = useMemo(() => {
+    return issues.filter(issue => {
+      const statusMatch = statusFilter === 'all' || issue.status === statusFilter;
+      const priorityMatch = priorityFilter === 'all' || issue.priority === priorityFilter;
+      return statusMatch && priorityMatch;
+    }).sort((a, b) => {
+      if (sortOrder === 'latest') {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      if (sortOrder === 'upvotes') {
+        return b.upvotes - a.upvotes;
+      }
+      return 0;
+    });
+  }, [issues, statusFilter, priorityFilter, sortOrder]);
+
   const stats = {
-    total: issues.length,
-    open: issues.filter(i => i.status === 'open').length,
-    inProgress: issues.filter(i => i.status === 'in_progress').length,
-    resolved: issues.filter(i => i.status === 'resolved').length,
+    total: filteredIssues.length,
+    open: filteredIssues.filter(i => i.status === 'open').length,
+    inProgress: filteredIssues.filter(i => i.status === 'in_progress').length,
+    resolved: filteredIssues.filter(i => i.status === 'resolved').length,
   };
 
-  const StatCard = ({ title, value, icon: Icon, color, gradient }) => (
+  const StatCard = ({ title, value, icon, color, gradient }) => (
     <Card
       elevation={2}
       sx={{
@@ -57,11 +77,12 @@ export default function Dashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            bgcolor: gradient,
+            background: gradient,
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            ml: 2,
           }}
         >
-          <Icon sx={{ color: '#fff', fontSize: 28 }} />
+          {icon}
         </Box>
       </CardContent>
     </Card>
@@ -69,25 +90,13 @@ export default function Dashboard() {
 
   return (
     <Box sx={{ bgcolor: '#f3f6fb', minHeight: '100vh', pb: 6 }}>
-      {/* Header */}
-      <Box
-        sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          pt: 6,
-          pb: 10,
-          px: 4,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
+      <PageHeader
+        title="Dashboard"
+        summary={{
+          titleText: 'Overview of civic issues',
+          subText: 'Monitor and track issues in real-time',
         }}
-      >
-        <PageHeader
-          title="Dashboard"
-          summary={{
-            titleText: 'Overview of civic issues',
-            subText: 'Monitor and track issues in real-time',
-          }}
-        />
-      </Box>
+      />
 
       {/* Stats */}
       <Box sx={{ px: 4, mt: -6 }}>
@@ -96,7 +105,7 @@ export default function Dashboard() {
             <StatCard
               title="Total Issues"
               value={stats.total}
-              icon={TrendingUp}
+              icon={<TrendingUp sx={{ color: '#fff', fontSize: 28 }} />}
               color="#667eea"
               gradient="linear-gradient(135deg,#667eea 0%,#5a67d8 100%)"
             />
@@ -105,7 +114,7 @@ export default function Dashboard() {
             <StatCard
               title="Open Issues"
               value={stats.open}
-              icon={Warning}
+              icon={<Warning sx={{ color: '#fff', fontSize: 28 }} />}
               color="#ef4444"
               gradient="linear-gradient(135deg,#f87171 0%,#ef4444 100%)"
             />
@@ -114,7 +123,7 @@ export default function Dashboard() {
             <StatCard
               title="In Progress"
               value={stats.inProgress}
-              icon={PendingActions}
+              icon={<PendingActions sx={{ color: '#fff', fontSize: 28 }} />}
               color="#f59e0b"
               gradient="linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%)"
             />
@@ -123,12 +132,21 @@ export default function Dashboard() {
             <StatCard
               title="Resolved"
               value={stats.resolved}
-              icon={CheckCircle}
+              icon={<CheckCircle sx={{ color: '#fff', fontSize: 28 }} />}
               color="#10b981"
               gradient="linear-gradient(135deg,#34d399 0%,#10b981 100%)"
             />
           </Grid>
         </Grid>
+
+        <FiltersPanel
+          statusFilter={statusFilter}
+          priorityFilter={priorityFilter}
+          setStatusFilter={setStatusFilter}
+          setPriorityFilter={setPriorityFilter}
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
+        />
 
         {/* Recent Issues */}
         <Paper
@@ -167,7 +185,7 @@ export default function Dashboard() {
                 </Typography>
               </Box>
             ) : (
-              issues.map(issue => <IssueCard key={issue._id} issue={issue} />)
+              filteredIssues.map(issue => <IssueCard key={issue._id} issue={issue} />)
             )}
           </List>
         </Paper>
