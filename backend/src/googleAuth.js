@@ -1,7 +1,9 @@
 const express = require('express');
 const axios = require('axios');
+const { OAuth2Client } = require('google-auth-library');
 
 const router = express.Router();
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 router.post('/verify', async (req, res) => {
   const { token } = req.body;
@@ -10,11 +12,23 @@ router.post('/verify', async (req, res) => {
   }
 
   try {
-    // Verify token with Google OAuth2 tokeninfo endpoint
-    const response = await axios.get(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`);
+    // Verify ID token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
     
-    // If valid, send user info (email, sub, name, etc.) back to client
-    res.json({ user: response.data });
+    // Send user info back to client
+    res.json({ 
+      user: {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+      } 
+    });
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
   }

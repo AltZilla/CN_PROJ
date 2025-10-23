@@ -1,6 +1,6 @@
 // -- Save as middlewares/authenticate.js -- //
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(CLIENT_ID); // Replace with your Google Client ID
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function authenticateUser(req, res, next) {
   const authHeader = req.headers['authorization'];
