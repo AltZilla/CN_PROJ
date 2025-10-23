@@ -18,8 +18,8 @@ function createColoredIcon(color) {
   return new L.Icon({
     iconUrl: iconUrls[color] || iconUrls.red,
     shadowUrl: iconUrls.shadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
     popupAnchor: [1, -34],
     shadowSize: [41, 41],
   });
@@ -66,12 +66,8 @@ export default function MapView() {
 
   const getWardName = (id) => {
     if (!wardZones || typeof wardZones !== 'object') return 'Unknown Ward';
-    try {
-      const idx = String(id).trim();
-      return wardZones[idx] || 'Unknown Ward';
-    } catch {
-      return 'Unknown Ward';
-    }
+    const idx = String(id).trim();
+    return wardZones[idx] || 'Unknown Ward';
   };
 
   const issuesByStatus = issues.reduce((acc, issue) => {
@@ -79,33 +75,20 @@ export default function MapView() {
     return acc;
   }, {});
 
-  const transparentStyle = {
-    fillColor: 'transparent',
-    weight: 0,
-    opacity: 0,
-    fillOpacity: 0,
-  };
-
-  const highlightStyle = {
-    fillColor: '#667eea',
-    weight: 3,
-    color: '#667eea',
-    fillOpacity: 0.2,
-  };
+  const transparentStyle = { fillColor: 'transparent', weight: 0, opacity: 0, fillOpacity: 0 };
+  const highlightStyle = { fillColor: '#667eea', weight: 3, color: '#667eea', fillOpacity: 0.2 };
 
   const onEachWard = (feature, layer) => {
-    const rawName = feature.properties && feature.properties.Name;
+    const rawName = feature.properties?.Name;
     const wardName = rawName ? getWardName(rawName) : 'Unknown Ward';
     const wardId = rawName ? rawName.trim() : 'N/A';
 
-    const popupContent = `
-      <div style="font-family: system-ui; padding: 4px;">
+    layer.bindPopup(`
+      <div style="font-family: system-ui; padding: 6px;">
         <strong style="font-size: 14px; color: #1f2937;">${wardName}</strong><br/>
-        <span style="font-size: 12px; color: #6b7280;">Ward ID: ${wardId}</span><br/>
-        <span style="font-size: 11px; color: #9ca3af; margin-top: 4px; display: block;">Click to view issues</span>
+        <span style="font-size: 12px; color: #6b7280;">Ward ID: ${wardId}</span>
       </div>
-    `;
-    layer.bindPopup(popupContent);
+    `);
 
     layer.on({
       mouseover: e => {
@@ -124,99 +107,95 @@ export default function MapView() {
   };
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
-      {/* Header Section */}
-      <Box sx={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        pt: 4,
-        pb: 8,
-        px: 4
-      }}>
+    <Box sx={{ bgcolor: '#f3f6fb', minHeight: '100vh' }}>
+      {/* Header */}
+      <Box
+        sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          pt: 6,
+          pb: 10,
+          px: 4,
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
+        }}
+      >
         <Container maxWidth="xl">
-          <PageHeader 
-            title="CIVIC MAP"
-            summary={{ 
-              titleText: 'Explore Chennai', 
-              subText: 'Interactive map showing all civic issues across wards' 
-            }}
-          />
+          <Box sx={{ textAlign: 'left' }}>
+            <PageHeader
+              title="CIVIC MAP"
+              summary={{
+                titleText: 'Explore Chennai',
+                subText: 'Interactive map showing civic issues across wards'
+              }}
+            />
+          </Box>
         </Container>
       </Box>
 
-      <Container maxWidth="xl" sx={{ mt: -4, pb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: -6, pb: 4 }}>
         {/* Legend Card */}
         <Fade in={!loading}>
-          <Paper 
-            elevation={0}
-            sx={{ 
-              p: 2.5, 
-              mb: 3, 
-              border: '1px solid #e5e7eb',
-              borderRadius: 2,
-              bgcolor: '#fff'
+          <Paper
+            elevation={2}
+            sx={{
+              p: 3,
+              mb: 4,
+              borderRadius: 3,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 1.5,
+              alignItems: 'center',
+              bgcolor: '#fff',
+              boxShadow: '0 8px 20px rgba(0,0,0,0.05)'
             }}
           >
-            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Info sx={{ fontSize: 18, color: '#6b7280' }} />
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151' }}>
-                  Legend:
-                </Typography>
-              </Box>
-              {Object.entries(statusLabels).map(([key, { label, color, bg }]) => (
-                <Chip
-                  key={key}
-                  label={`${label} (${issuesByStatus[key] || 0})`}
-                  size="small"
-                  sx={{ 
-                    bgcolor: bg,
-                    color: color,
-                    fontWeight: 600,
-                    border: `1px solid ${color}30`
-                  }}
-                />
-              ))}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Info sx={{ fontSize: 18, color: '#6b7280' }} />
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151' }}>Legend:</Typography>
+            </Box>
+            {Object.entries(statusLabels).map(([key, { label, color, bg }]) => (
               <Chip
-                icon={<LocationOn />}
-                label="Click ward to view issues"
+                key={key}
+                label={`${label} (${issuesByStatus[key] || 0})`}
                 size="small"
-                variant="outlined"
-                sx={{ ml: 'auto', fontWeight: 500 }}
+                sx={{
+                  bgcolor: bg,
+                  color: color,
+                  fontWeight: 600,
+                  border: `1px solid ${color}30`
+                }}
               />
-            </Stack>
+            ))}
+            <Chip
+              icon={<LocationOn />}
+              label="Click ward to view issues"
+              size="small"
+              variant="outlined"
+              sx={{ ml: 'auto', fontWeight: 500 }}
+            />
           </Paper>
         </Fade>
 
-        {/* Map Container */}
+        {/* Map */}
         <Paper
-          elevation={0}
+          elevation={2}
           sx={{
             borderRadius: 3,
             overflow: 'hidden',
             border: '1px solid #e5e7eb',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
           }}
         >
           <MapContainer
             center={[13.0827, 80.2707]}
             zoom={12}
-            style={{ 
-              height: '75vh', 
-              minHeight: 500, 
-              width: '100%',
-            }}
+            style={{ height: '75vh', minHeight: 500, width: '100%' }}
           >
             <TileLayer
               url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
               attribution='&copy; OpenStreetMap contributors'
             />
-            {geojson && (
-              <GeoJSON
-                data={geojson}
-                style={transparentStyle}
-                onEachFeature={onEachWard}
-              />
-            )}
+            {geojson && <GeoJSON data={geojson} style={transparentStyle} onEachFeature={onEachWard} />}
             {issues.map(issue => issue.lat && issue.lng && (
               <Marker
                 key={issue._id}
@@ -231,10 +210,10 @@ export default function MapView() {
                     <Stack spacing={0.5}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="caption" color="text.secondary">Status:</Typography>
-                        <Chip 
-                          label={statusLabels[issue.status]?.label || issue.status} 
+                        <Chip
+                          label={statusLabels[issue.status]?.label || issue.status}
                           size="small"
-                          sx={{ 
+                          sx={{
                             height: 20,
                             fontSize: 11,
                             bgcolor: statusLabels[issue.status]?.bg,
