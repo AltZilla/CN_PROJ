@@ -13,7 +13,7 @@ export default function Dashboard() {
   const [sortOrder, setSortOrder] = useState('latest');
 
   useEffect(() => {
-    fetch('http://localhost:8080/issues?limit=10&sort=createdAt:desc')
+    fetch('/api/issues?limit=10&sort=createdAt:desc')
       .then(res => res.json())
       .then(data => {
         setIssues(data.items || data);

@@ -22,14 +22,14 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import { useAuth } from '../context/AuthContext';
-
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
 });
+
+import { useAuth } from '../context/AuthContext';
 
 export default function EditIssue() {
   const { id } = useParams();
@@ -49,7 +49,7 @@ export default function EditIssue() {
   }, [user]);
 
   useEffect(() => {
-    fetch(`http://localhost:8080/issues/${id}`)
+    fetch(`/api/issues/${id}`)
       .then((res) => {
         if (!res.ok) {
           throw new Error('Issue not found');
@@ -77,7 +77,7 @@ export default function EditIssue() {
     }
     try {
       const body = { status, assignedTo, statusChangeReason };
-      const res = await fetch(`http://localhost:8080/issues/${id}/status`, {
+      const res = await fetch(`/api/issues/${id}/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +121,7 @@ export default function EditIssue() {
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
             {issue.lat && issue.lng && (
-              <MapContainer center={[issue.lat, issue.lng]} zoom={15} style={{ height: '400px', borderRadius: '8px' }}>
+              <MapContainer center={[issue.lat, issue.lng]} zoom={15} style={{ height: '100%', minHeight: '400px', borderRadius: '8px' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

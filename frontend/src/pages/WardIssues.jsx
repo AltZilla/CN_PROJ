@@ -33,7 +33,7 @@ export default function WardIssues() {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:8080/api/issues?ward=${encodeURIComponent(wardSlug)}&page=${reset ? 1 : page}&limit=${limit}`
+        `/api/issues?ward=${encodeURIComponent(wardSlug)}&page=${reset ? 1 : page}&limit=${limit}`
       );
       const data = await res.json();
       const newIssues = Array.isArray(data) ? data : data.items || [];

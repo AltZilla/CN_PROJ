@@ -62,9 +62,9 @@ export default function MapView() {
 
   useEffect(() => {
     Promise.all([
-      fetch('http://localhost:8080/geo/divisions').then(res => res.json()),
-      fetch('http://localhost:8080/geo/ward-zones').then(res => res.json()),
-      fetch('http://localhost:8080/issues?limit=100').then(res => res.json())
+      fetch('/api/geo/divisions').then(res => res.json()),
+      fetch('/api/geo/ward-zones').then(res => res.json()),
+      fetch('/api/issues?limit=100').then(res => res.json())
     ])
     .then(([geoData, wardData, issuesData]) => {
       setGeojson(geoData);

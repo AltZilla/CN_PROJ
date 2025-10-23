@@ -151,7 +151,7 @@ export default function UploadView() {
       console.log('Submitting payload:', { ...payload, photo: payload.photo ? '[base64 data]' : null });
       setDebugPayload(payload);
 
-      const response = await fetch('http://localhost:8080/issues', {
+      const response = await fetch('/api/issues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

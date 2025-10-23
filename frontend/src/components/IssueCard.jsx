@@ -82,7 +82,7 @@ export default function IssueCard({ issue }) {
       // Debug: log token snippet so we can inspect what's being sent
       try { console.debug('Upvote token snippet:', String(user.token).slice(0, 40), '...'); } catch (_) {}
 
-      const res = await fetch(`http://localhost:8080/issues/${issue._id}/upvote`, {
+      const res = await fetch(`/api/issues/${issue._id}/upvote`, {
         method: 'POST',
         headers: {
           'x-api-key': 'dev-key',
