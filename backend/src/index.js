@@ -43,10 +43,11 @@ app.use(helmet());
 app.use(express.json());
 app.use('/auth/google', googleAuthRouter);
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`🚀 Backend running locally on port ${PORT}`));
+}
+
 // Logger
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
