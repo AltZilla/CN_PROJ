@@ -72,18 +72,9 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-// Uploads
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '';
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, '-').slice(0, 40);
-    cb(null, `${Date.now()}-${base}${ext.toLowerCase()}`);
-  }
-});
+
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -94,11 +85,7 @@ const upload = multer({
   }
 });
 
-// Force inline display
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Content-Disposition', 'inline');
-  next();
-}, express.static(uploadsDir));
+
 
 // Rate limiters
 const globalLimiter = rateLimit({
@@ -130,7 +117,7 @@ const swaggerSpec = swaggerJSDoc({
     info: {
       title: 'Smart Civic Reporter API',
       version: '1.0.0',
-      description: 'Endpoints for issues, uploads, votes, status, comments, flags, feedback, search, and analytics'
+      description: 'Endpoints for issues, votes, status, comments, flags, feedback, search, and analytics'
     },
     servers: [{ url: 'http://localhost:' + (process.env.PORT || 8080) }],
     components: {
