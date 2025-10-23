@@ -199,7 +199,7 @@ app.get('/api/issues', async (req, res) => {
       .sort({ createdAt: -1 })
       .toArray();
 
-    res.json(issues);
+  res.json(issues);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -287,6 +287,8 @@ async function updateByEitherId(collection, id, update, options) {
   return doc2 || null;
 }
 
+
+
 /**
  * @openapi
  * /issues:
@@ -321,12 +323,23 @@ app.post('/issues',
   validate(IssueCreateSchema),
   async (req, res) => {
     const db = req.app.locals.db;
-    const { title, description, category, lat, lng, photoUrl, userId } = req.body;
+    const { title, description, category, lat, lng, photo, userId } = req.body;
 
     let wardInfo = null;
     if (typeof lat === 'number' && typeof lng === 'number') {
       wardInfo = locateWard(lat, lng);
       if (!wardInfo) return res.status(400).json({ error: 'Location outside service area' });
+    }
+
+    // Convert base64 to buffer if it's base64 data
+    let imageData = null;
+    if (photo && photo.startsWith('data:image/')) {
+      try {
+        const base64Data = photo.split(',')[1];
+        imageData = Buffer.from(base64Data, 'base64');
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid image data' });
+      }
     }
 
     const now = new Date();
@@ -336,7 +349,7 @@ app.post('/issues',
       category,
       lat: typeof lat === 'number' ? lat : null,
       lng: typeof lng === 'number' ? lng : null,
-      photoUrl: photoUrl || null,
+      photo: imageData ? imageData.toString('base64') : null,
       wardNumber: wardInfo?.wardNumber || null,
       wardName: wardInfo?.wardName || null,
       upvotes: 0,
@@ -395,7 +408,7 @@ app.post(
   '/issues/upload',
   requireApiKey,
   async (req, res, next) => {
-    upload.single('photo')(req, res, (err) => {
+    multer().single('photo')(req, res, (err) => {
       if (err) return next(err);
       next();
     });
@@ -438,7 +451,7 @@ app.post(
 
       if (file) {
         try {
-          const buf = await fsp.readFile(file.path);
+          const buf = Buffer.from(file.buffer);
           const parsed = exif.create(buf).parse();
 
           if (
@@ -475,13 +488,19 @@ app.post(
 
       const now = new Date();
 
+      // Convert image buffer to base64
+      let imageData = null;
+      if (file) {
+        imageData = file.buffer.toString('base64');
+      }
+
       const doc = {
         title,
         description,
         category,
         lat,
         lng,
-        photoUrl: file ? `uploads/${file.filename}` : null,
+        photo: imageData,
         wardNumber: wardInfo?.wardNumber ?? null,
         wardName: wardInfo?.wardName ?? null,
         upvotes: 0,
@@ -601,26 +620,83 @@ app.post('/issues/:id/upvote',
     console.log('Checking upvote for user ID:', userId, 'on issue:', id);
 
     try {
-      const alreadyUpvoted = await db.collection('issues').findOne({
-        _id: new ObjectId(id),
-        upvotedBy: userId,
-      });
+      // Use helper to support both ObjectId and string _id consistently
+      // First check if the user already upvoted (search handles both id types)
+      let alreadyUpvoted = null;
+      if (/^[0-9a-fA-F]{24}$/.test(id)) {
+        alreadyUpvoted = await db.collection('issues').findOne({ _id: new ObjectId(id), upvotedBy: userId });
+      }
+      if (!alreadyUpvoted) {
+        alreadyUpvoted = await db.collection('issues').findOne({ _id: id, upvotedBy: userId });
+      }
 
       console.log('Already upvoted:', !!alreadyUpvoted);
 
+      // Build update depending on current state (toggle behavior)
+      let update = null;
       if (alreadyUpvoted) {
-        return res.status(400).json({ error: 'You have already upvoted this issue' });
+        // User pressed again: remove their upvote
+        update = { $inc: { upvotes: -1 }, $pull: { upvotedBy: userId }, $set: { updatedAt: new Date() } };
+      } else {
+        // Add upvote
+        update = { $inc: { upvotes: 1 }, $addToSet: { upvotedBy: userId }, $set: { updatedAt: new Date() } };
       }
 
-      const updated = await db.collection('issues').findOneAndUpdate(
-        { _id: new ObjectId(id) },
-        { $inc: { upvotes: 1 }, $push: { upvotedBy: userId }, $set: { updatedAt: new Date() } },
-        { returnDocument: 'after' }
-      );
+      // Try ObjectId path first if id looks like 24-hex, and log results for diagnostics
+      let updatedDoc = null;
+      if (/^[0-9a-fA-F]{24}$/.test(id)) {
+        try {
+          const r1 = await db.collection('issues').findOneAndUpdate(
+            { _id: new ObjectId(id) },
+            update,
+            { returnDocument: 'after' }
+          );
+          console.debug('Upvote r1 result:', !!r1, 'valueExists:', !!r1?.value);
+          if (r1 && r1.value) updatedDoc = r1.value;
+        } catch (r1err) {
+          console.warn('Upvote r1 error for ObjectId attempt:', r1err);
+        }
+      }
 
-      if (!updated.value) return res.status(404).json({ error: 'Issue not found' });
+      if (!updatedDoc) {
+        try {
+          const r2 = await db.collection('issues').findOneAndUpdate(
+            { _id: id },
+            update,
+            { returnDocument: 'after' }
+          );
+          console.debug('Upvote r2 result:', !!r2, 'valueExists:', !!r2?.value);
+          if (r2 && r2.value) updatedDoc = r2.value;
+        } catch (r2err) {
+          console.warn('Upvote r2 error for string id attempt:', r2err);
+        }
+      }
 
-      res.json(updated.value);
+      if (!updatedDoc) {
+        // As some driver versions may not return the updated value, try an explicit find to return the current document
+        try {
+          let found = null;
+          if (/^[0-9a-fA-F]{24}$/.test(id)) {
+            found = await db.collection('issues').findOne({ _id: new ObjectId(id) });
+          }
+          if (!found) found = await db.collection('issues').findOne({ _id: id });
+
+          if (found) {
+            console.debug('Upvote: fetched document after update via explicit find');
+            return res.json(found);
+          }
+        } catch (findErr) {
+          console.warn('Upvote: explicit find after update failed:', findErr);
+        }
+
+        // Diagnostics: log what id variants exist nearby
+        console.warn('Upvote: no document found for id (tried ObjectId and string). id=', id, 'typeof id=', typeof id);
+        const nearby = await db.collection('issues').find({}).sort({ createdAt: -1 }).limit(10).toArray();
+        console.warn('Sample recent issue ids:', nearby.map(i => ({ id: String(i._id), type: typeof i._id })));
+        return res.status(404).json({ error: 'Issue not found' });
+      }
+
+  res.json(updatedDoc);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to upvote' });
@@ -678,7 +754,7 @@ app.post('/issues/:id/status',
         { returnDocument: 'after' }
       );
       if (!doc) return res.status(404).json({ error: 'Issue not found' });
-      res.json(doc);
+  res.json(doc);
     } catch (e) {
       logger.error({ err: e, id }, 'Status update error');
       res.status(500).json({ error: 'Failed to update status' });
@@ -729,7 +805,7 @@ app.post('/issues/:id/comment',
         { returnDocument: 'after' }
       );
       if (!doc) return res.status(404).json({ error: 'Issue not found' });
-      res.json(doc);
+  res.json(doc);
     } catch (e) {
       logger.error({ err: e, id }, 'Comment error');
       res.status(500).json({ error: 'Failed to add comment' });
@@ -780,7 +856,7 @@ app.post('/issues/:id/flag',
         { returnDocument: 'after' }
       );
       if (!doc) return res.status(404).json({ error: 'Issue not found' });
-      res.json(doc);
+  res.json(doc);
     } catch (e) {
       logger.error({ err: e, id }, 'Flag error');
       res.status(500).json({ error: 'Failed to flag issue' });
@@ -830,7 +906,7 @@ app.post('/issues/:id/feedback',
         { returnDocument: 'after' }
       );
       if (!doc) return res.status(404).json({ error: 'Issue not found' });
-      res.json(doc);
+  res.json(doc);
     } catch (e) {
       logger.error({ err: e, id }, 'Feedback error');
       res.status(500).json({ error: 'Failed to add feedback' });
@@ -881,10 +957,10 @@ app.get('/issues/:id', async (req, res) => {
       doc = await db.collection('issues').findOne({ _id: new ObjectId(id) });
       if (!doc) doc = await db.collection('issues').findOne({ _id: id });
     } else {
-      doc = await db.collection('issues').findOne({ _id: id });
+      if (!doc) doc = await db.collection('issues').findOne({ _id: id });
     }
     if (!doc) return res.status(404).json({ error: 'Issue not found' });
-    res.json(doc);
+  res.json(doc);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch issue' });
   }

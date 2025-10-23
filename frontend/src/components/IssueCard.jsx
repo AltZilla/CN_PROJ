@@ -1,28 +1,81 @@
-import React, { useState } from 'react';
-import { Card, CardContent, Typography, Box, Stack, IconButton } from '@mui/material';
-import ThumbUpIcon from '@mui/icons-material/ThumbUp';
-import { useAuth } from '../context/AuthContext';  // import your auth hook
+import React, { useState, useEffect } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardMedia,
+  Typography, 
+  Box, 
+  Stack, 
+  IconButton,
+  Chip 
+} from '@mui/material';
+import {
+  ThumbUp,
+  LocationOn,
+  AccessTime,
+  Warning,
+  CheckCircle,
+  PendingActions,
+} from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 
 const statusConfig = {
-  open: { color: '#10b981', label: 'Open', bg: '#ecfdf5' },
-  in_progress: { color: '#f59e0b', label: 'In Progress', bg: '#fffbeb' },
-  closed: { color: '#6b7280', label: 'Closed', bg: '#f3f4f6' },
+  open: { 
+    color: '#ef4444', 
+    label: 'Open', 
+    bg: '#fee2e2',
+    icon: Warning 
+  },
+  in_progress: { 
+    color: '#f59e0b', 
+    label: 'In Progress', 
+    bg: '#fef3c7',
+    icon: PendingActions 
+  },
+  assigned: { 
+    color: '#3b82f6', 
+    label: 'Assigned', 
+    bg: '#dbeafe',
+    icon: PendingActions 
+  },
+  resolved: { 
+    color: '#10b981', 
+    label: 'Resolved', 
+    bg: '#d1fae5',
+    icon: CheckCircle 
+  },
+  closed: { 
+    color: '#6b7280', 
+    label: 'Closed', 
+    bg: '#f3f4f6',
+    icon: CheckCircle 
+  },
 };
 
 const priorityConfig = {
-  low: { color: '#3b82f6', label: 'Low' },
-  medium: { color: '#f59e0b', label: 'Medium' },
-  high: { color: '#ef4444', label: 'High' },
+  low: { color: '#10b981', bg: '#d1fae5' },
+  medium: { color: '#f59e0b', bg: '#fef3c7' },
+  high: { color: '#ef4444', bg: '#fee2e2' },
 };
 
 export default function IssueCard({ issue }) {
-  const { user } = useAuth();  // get login user from context
+  const { user } = useAuth();
 
   const statusInfo = statusConfig[issue.status] || statusConfig.open;
   const priorityInfo = priorityConfig[issue.priority] || priorityConfig.medium;
+  const StatusIcon = statusInfo.icon;
 
   const [upvotes, setUpvotes] = useState(issue.upvotes || 0);
   const [isUpvoting, setIsUpvoting] = useState(false);
+  const upvotedByArray = Array.isArray(issue.upvotedBy) ? issue.upvotedBy : [];
+  const uid = user?.id ?? user?.sub ?? user?.userId ?? null;
+  const isInitiallyUpvoted = Boolean(uid && upvotedByArray.some(u => String(u) === String(uid)));
+  const [isUpvoted, setIsUpvoted] = useState(isInitiallyUpvoted);
+
+  useEffect(() => {
+    const arr = Array.isArray(issue.upvotedBy) ? issue.upvotedBy : [];
+    setIsUpvoted(Boolean(uid && arr.some(u => String(u) === String(uid))));
+  }, [user, issue.upvotedBy]);
 
   const handleUpvote = async () => {
     if (!user) {
@@ -31,6 +84,9 @@ export default function IssueCard({ issue }) {
     }
     setIsUpvoting(true);
     try {
+      // Debug: log token snippet so we can inspect what's being sent
+      try { console.debug('Upvote token snippet:', String(user.token).slice(0, 40), '...'); } catch (_) {}
+
       const res = await fetch(`http://localhost:8080/issues/${issue._id}/upvote`, {
         method: 'POST',
         headers: {
@@ -39,119 +95,264 @@ export default function IssueCard({ issue }) {
           'Content-Type': 'application/json',
         },
       });
+
       if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({}));
-        throw new Error(errorBody.error || 'Failed to upvote (no error body)');
+        const bodyText = await res.text().catch(() => '');
+        console.warn('Upvote failed', res.status, bodyText);
+        // Try to parse JSON body, fall back to text
+        let parsed = null;
+        try { parsed = JSON.parse(bodyText); } catch (_) {}
+        const message = parsed?.error || bodyText || `HTTP ${res.status}`;
+        throw new Error(message);
       }
       const data = await res.json();
       setUpvotes(data.upvotes || 0);
+      try {
+        const arr = Array.isArray(data.upvotedBy) ? data.upvotedBy : [];
+        const upvotedNow = uid && arr.some(u => String(u) === String(uid));
+        setIsUpvoted(Boolean(upvotedNow));
+      } catch (_) {}
     } catch (err) {
       console.error('Upvote error:', err.message || err);
-      alert(err.message || 'Error upvoting issue');
+      // Show more guidance when token is invalid
+      if (String(err.message).toLowerCase().includes('invalid token') || String(err.message).toLowerCase().includes('authorization')) {
+        alert(`Upvote failed: ${err.message}\n\nCheck DevTools Network -> request headers to confirm Authorization header is present and correct.`);
+      } else {
+        alert(err.message || 'Error upvoting issue');
+      }
     } finally {
       setIsUpvoting(false);
     }
   };
 
+  // Get image source (URL or base64)
+  const getImageSource = () => {
+    const imageData = issue.photo || issue.photoUrl || issue.image;
+    if (!imageData) return null;
+
+    const raw = String(imageData).trim();
+    
+    // If it's base64 data and doesn't have the data URL prefix, add it
+    if (raw.match(/^[A-Za-z0-9+/=]+$/)) {
+      return `data:image/jpeg;base64,${raw}`;
+    }
+    
+    // If it's already a data URL, return as is
+    if (raw.startsWith('data:image/')) {
+      return raw;
+    }
+    
+    // If it's a URL, return as is
+    if (raw.match(/^https?:\/\//i)) {
+      return raw;
+    }
+
+    return null;
+  };
+
+  const [imageSource, setImageSource] = useState(() => getImageSource());
+  const [imageError, setImageError] = useState(false);
+
+  // Debug logging
+  console.log('Issue data:', {
+    _id: issue._id,
+    photoUrl: issue.photoUrl,
+    photo: issue.photo,
+    image: issue.image,
+    calculatedUrl: imageSource
+  });
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <Card
-      variant="outlined"
+      elevation={0}
       sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        border: '1px solid #e5e7eb',
         borderRadius: 2,
-        mb: 2,
-        transition: 'all 0.2s ease',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease',
         '&:hover': {
-          borderColor: '#d1d5db',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-        }
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          transform: 'translateY(-2px)',
+          borderColor: statusInfo.color,
+        },
       }}
     >
-      <CardContent sx={{ p: 4 }}>
-        {/* Header */}
-        <Typography 
-          variant="h6" 
-          sx={{ fontWeight: 600, color: '#111827', mb: 2, fontSize: '1.125rem' }}
+      {/* Image Section */}
+      {imageSource && !imageError ? (
+        <CardMedia
+          component="img"
+          sx={{
+            width: { xs: '100%', sm: 200 },
+            height: { xs: 200, sm: 'auto' },
+            minHeight: { sm: 200 },
+            objectFit: 'cover',
+            flexShrink: 0,
+          }}
+          image={imageSource}
+          alt={issue.title}
+          onError={(e) => {
+            console.error('Failed to load image:', imageSource);
+            setImageError(true);
+          }}
+        />
+      ) : imageError ? (
+        // Placeholder for failed images
+        <Box
+          sx={{
+            width: { xs: '100%', sm: 200 },
+            height: { xs: 200, sm: 'auto' },
+            minHeight: { sm: 200 },
+            bgcolor: '#f3f4f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ca3af',
+            flexShrink: 0,
+          }}
         >
-          {issue.title}
-        </Typography>
-
-        <Stack direction="row" spacing={1.5} alignItems="center" mb={3}>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.75,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              bgcolor: statusInfo.bg,
-            }}
-          >
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusInfo.color }} />
-            <Typography variant="caption" sx={{ fontWeight: 500, color: statusInfo.color, fontSize: '0.8rem' }}>
-              {statusInfo.label}
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              border: `1px solid ${priorityInfo.color}20`,
-              bgcolor: `${priorityInfo.color}08`,
-            }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 500, color: priorityInfo.color, fontSize: '0.8rem' }}>
-              {priorityInfo.label} Priority
-            </Typography>
-          </Box>
-        </Stack>
-
-        {/* Description */}
-        <Typography 
-          variant="body2" 
-          sx={{ color: '#4b5563', lineHeight: 1.7, mb: 3, whiteSpace: 'pre-wrap' }}
-        >
-          {issue.description}
-        </Typography>
-
-        {/* Image */}
-        {issue.photoUrl && (
-          <Box 
-            sx={{ mb: 3, borderRadius: 2, overflow: 'hidden', border: '1px solid #e5e7eb' }}
-          >
-            <Box
-              component="img"
-              src={issue.photoUrl}
-              alt="Issue photo"
-              sx={{ width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block' }}
-            />
-          </Box>
-        )}
-
-        {/* Upvote Button and Count */}
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <IconButton 
-            aria-label="upvote issue" 
-            onClick={handleUpvote} 
-            disabled={isUpvoting || !user} 
-            size="small"
-            color="primary"
-          >
-            <ThumbUpIcon />
-          </IconButton>
-          <Typography variant="body2" color="text.secondary">
-            {upvotes} {upvotes === 1 ? 'upvote' : 'upvotes'}
+          <Typography variant="body2" color="inherit">
+            Image Not Available
           </Typography>
-        </Stack>
+        </Box>
+      ) : null}
 
-        {/* Footer */}
-        <Typography variant="caption" sx={{ color: '#9ca3af', fontSize: '0.75rem' }}>
-          Reported {new Date(issue.createdAt).toLocaleString()}
-        </Typography>
+      {/* Content Section */}
+      <CardContent sx={{ flex: 1, p: 3 }}>
+        <Stack spacing={2}>
+          {/* Header with Title and Status */}
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, gap: 2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: '1.125rem',
+                  color: '#1f2937',
+                  flex: 1,
+                }}
+              >
+                {issue.title}
+              </Typography>
+              <Chip
+                icon={<StatusIcon sx={{ fontSize: 16 }} />}
+                label={statusInfo.label}
+                size="small"
+                sx={{
+                  bgcolor: statusInfo.bg,
+                  color: statusInfo.color,
+                  fontWeight: 600,
+                  border: `1px solid ${statusInfo.color}30`,
+                  '& .MuiChip-icon': {
+                    color: statusInfo.color,
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Description */}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                lineHeight: 1.6,
+                mb: 2,
+              }}
+            >
+              {issue.description}
+            </Typography>
+          </Box>
+
+          {/* Metadata Row */}
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ 
+              flexWrap: 'wrap',
+              gap: 1,
+            }}
+          >
+            {/* Priority */}
+            <Chip
+              label={`${issue.priority?.toUpperCase() || 'MEDIUM'} Priority`}
+              size="small"
+              sx={{
+                height: 24,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                bgcolor: priorityInfo.bg,
+                color: priorityInfo.color,
+                border: `1px solid ${priorityInfo.color}30`,
+              }}
+            />
+
+            {/* Location */}
+            {(issue.ward || issue.wardName || (issue.lat && issue.lng)) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <LocationOn sx={{ fontSize: 16, color: '#6b7280' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {issue.ward || issue.wardName || `${issue.lat?.toFixed(4)}, ${issue.lng?.toFixed(4)}`}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Date */}
+            {issue.createdAt && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <AccessTime sx={{ fontSize: 16, color: '#6b7280' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(issue.createdAt)}
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+
+          {/* Upvote Section */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 1 }}>
+            <IconButton
+              onClick={handleUpvote}
+              disabled={isUpvoting || !user}
+              size="small"
+              sx={{
+                color: isUpvoted ? '#2563eb' : '#9ca3af',
+                '&:hover': {
+                  bgcolor: isUpvoted ? '#e6f0ff' : '#f3f4f6',
+                },
+                '&:disabled': {
+                  color: '#9ca3af',
+                },
+              }}
+            >
+              <ThumbUp sx={{ fontSize: 18 }} />
+            </IconButton>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {upvotes} {upvotes === 1 ? 'upvote' : 'upvotes'}
+            </Typography>
+            {!user && (
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                (Login to upvote)
+              </Typography>
+            )}
+          </Box>
+        </Stack>
       </CardContent>
     </Card>
   );
